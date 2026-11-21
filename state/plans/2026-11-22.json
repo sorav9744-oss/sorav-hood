@@ -1,0 +1,87 @@
+{
+ "channels": {
+  "channel_b": [
+   {
+    "cand": 22,
+    "end": 456.89,
+    "final": 0.96352,
+    "latest": true,
+    "start": 416.04,
+    "title": "Samne Dekho Kitna Traiphik Ho Raha? 😜😂",
+    "title_source": "question",
+    "vid": "TeCrjPZ9fds",
+    "viewer_score": 0.1351
+   },
+   {
+    "cand": 5,
+    "end": 569.7,
+    "final": 0.918485,
+    "latest": true,
+    "start": 535.42,
+    "title": "Acting Perfect Hai 😂",
+    "title_source": "viewer_comment",
+    "vid": "TeCrjPZ9fds",
+    "viewer_score": 0.236
+   },
+   {
+    "cand": 18,
+    "end": 115.32,
+    "final": 1.95783,
+    "latest": false,
+    "start": 73.75,
+    "title": "Sourav Joshi Boogieman 😄",
+    "title_source": "viewer_comment",
+    "vid": "sl68juRqLM4",
+    "viewer_score": 0.5422
+   },
+   {
+    "cand": 16,
+    "end": 244.39,
+    "final": 1.827691,
+    "latest": false,
+    "start": 199.89,
+    "title": "Sourav Knows How Algorithm Works 😄",
+    "title_source": "viewer_comment",
+    "vid": "sl68juRqLM4",
+    "viewer_score": 0.7402
+   },
+   {
+    "cand": 5,
+    "end": 173.06,
+    "final": 1.602672,
+    "latest": false,
+    "start": 128.92,
+    "title": "Elvish Bhai Elvish Gai 😄",
+    "title_source": "viewer_comment",
+    "vid": "kEfCHWD1u5M",
+    "viewer_score": 0.8952
+   },
+   {
+    "cand": 33,
+    "end": 688.04,
+    "final": 1.56429,
+    "latest": false,
+    "start": 638.17,
+    "title": "Acting Ke Badshah Ho Ji Aap 😄",
+    "title_source": "viewer_comment",
+    "vid": "kEfCHWD1u5M",
+    "viewer_score": 0.1347
+   }
+  ]
+ },
+ "date": "2026-11-22",
+ "max_moments_per_vlog": 20,
+ "used_titles": [
+  "Jay Shree Ram 😄",
+  "Kunali Kya Kar Raha Hai? 😜😂",
+  "Og Line By Sourav Joshi 😄",
+  "Pyuish Phone Lene Aaiga Dubara 😂",
+  "Sabse Achi Acting Bed Ne Ki 😅",
+  "Ye To Katarnak Awaj De Raha Hai 😮"
+ ],
+ "vlog_titles": {
+  "TeCrjPZ9fds": "Raatko Rone ki Awaz Aarhi h 😳",
+  "kEfCHWD1u5M": "FAKE CHICKEN PRANK ON FAMILY 🤭",
+  "sl68juRqLM4": "Baarish Se Ye Kya Hogya 😕 Farm House Mein"
+ }
+}
