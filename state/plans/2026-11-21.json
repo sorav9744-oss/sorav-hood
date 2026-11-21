@@ -1,0 +1,87 @@
+{
+ "channels": {
+  "channel_b": [
+   {
+    "cand": 10,
+    "end": 354.25,
+    "final": 1.35545,
+    "latest": false,
+    "start": 308.98,
+    "title": "Kunali Kya Kar Raha Hai? 😜😂",
+    "title_source": "question",
+    "vid": "kEfCHWD1u5M",
+    "viewer_score": 0.0666
+   },
+   {
+    "cand": 20,
+    "end": 630.68,
+    "final": 1.225039,
+    "latest": false,
+    "start": 592.7,
+    "title": "Badi Mummy Ke Reaction 😂",
+    "title_source": "viewer_comment",
+    "vid": "kEfCHWD1u5M",
+    "viewer_score": 0.1482
+   },
+   {
+    "cand": 10,
+    "end": 502.42,
+    "final": 1.406402,
+    "latest": false,
+    "start": 464.77,
+    "title": "Dekho Dikh Rahi Hai Nana Lek 😜😂",
+    "title_source": "quote",
+    "vid": "sl68juRqLM4",
+    "viewer_score": 0.1355
+   },
+   {
+    "cand": 26,
+    "end": 72.57,
+    "final": 1.134904,
+    "latest": false,
+    "start": 30.68,
+    "title": "E Kya Kar Rahe Ho? 🥺😥",
+    "title_source": "question",
+    "vid": "sl68juRqLM4",
+    "viewer_score": 0.1812
+   },
+   {
+    "cand": 15,
+    "end": 404.0,
+    "final": 2.325785,
+    "latest": false,
+    "start": 353.52,
+    "title": "Bechare Chacha Ji 😢",
+    "title_source": "viewer_comment",
+    "vid": "M8a-0T0uc9k",
+    "viewer_score": 0.9957
+   },
+   {
+    "cand": 32,
+    "end": 582.2,
+    "final": 1.88712,
+    "latest": false,
+    "start": 536.91,
+    "title": "Kon Dekh Raha Hai Bje Vlog ❤",
+    "title_source": "viewer_comment",
+    "vid": "M8a-0T0uc9k",
+    "viewer_score": 0.373
+   }
+  ]
+ },
+ "date": "2026-11-21",
+ "max_moments_per_vlog": 20,
+ "used_titles": [
+  "Jay Shree Ram 😄",
+  "Og Line By Sourav Joshi 😄",
+  "Pyuish Phone Lene Aaiga Dubara 😂",
+  "Sabse Achi Acting Bed Ne Ki 😅",
+  "Samne Dekho Kitna Traiphik Ho Raha? 😜😂",
+  "Ye To Katarnak Awaj De Raha Hai 😮"
+ ],
+ "vlog_titles": {
+  "M8a-0T0uc9k": "Circle Game With Family 😍",
+  "kEfCHWD1u5M": "FAKE CHICKEN PRANK ON FAMILY 🤭",
+  "sl68juRqLM4": "Baarish Se Ye Kya Hogya 😕 Farm House Mein"
+ }
+}
