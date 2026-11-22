@@ -370,8 +370,8 @@ daily:                                   # `joshiclip daily run|plan|post` (josh
     # one repo per channel; each repo reads the other's state/ so no scene is ever posted twice (any channel).
     # crons = this channel's plan + catch-up times in .github/workflows/daily.yml (UTC); channel_b plans 1.5 h
     # after channel_a, so it always sees channel_a's plan of the day.
-    - {name: channel_a, env: YT_A, repo: prajmulik49-stack/s-clips, crons: ["30 20 * * *", "30 23 * * *"]}   # 02:00 + 05:00 IST
-    - {name: channel_b, env: YT_B, repo: sorav9744-oss/sorav-hood, crons: ["0 22 * * *", "0 0 * * *"], after: channel_a}   # 03:30 + 05:30 IST; plans after channel_a's plan, yields on any clash
+    - {name: channel_a, env: YT_A, repo: prajmulik49-stack/s-clips, crons: ["30 19 * * *", "30 20 * * *", "30 23 * * *"]}   # 01:00 + 02:00 + 05:00 IST (GitHub sometimes drops a scheduled run)
+    - {name: channel_b, env: YT_B, repo: sorav9744-oss/sorav-hood, crons: ["0 22 * * *", "0 23 * * *", "0 0 * * *"], after: channel_a}   # 03:30 + 04:30 + 05:30 IST; plans after channel_a's plan, yields on any clash
   per_channel: 6                         # free API quota = 10,000 units/day = 6 uploads (1,600 each) per Cloud project
   latest_per_channel: [2, 2]             # 2 from the newest vlog ...
   max_per_old_vlog: 4                    # ... + 2 per channel from each of 2 older vlogs (4 per old vlog in total): one already analysed (cache,

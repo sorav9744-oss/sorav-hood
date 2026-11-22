@@ -6,9 +6,11 @@ name: daily-shorts
 
 on:
   schedule:
+    - cron: "30 19 * * *"          # 01:00 IST: channel_a (extra start: GitHub sometimes drops a scheduled run)
     - cron: "30 20 * * *"          # 02:00 IST every day (GitHub may start it a few minutes late)
     - cron: "30 23 * * *"          # 05:00 IST catch-up: reuses today's plan, posts only what 02:00 didn't (no-op if all done)
     - cron: "0 22 * * *"           # 03:30 IST: channel_b's repo (sees channel_a's plan of the day)
+    - cron: "0 23 * * *"           # 04:30 IST: channel_b extra start
     - cron: "0 0 * * *"            # 05:30 IST: channel_b catch-up
     # each repo runs only the crons its channel lists in config.yaml daily.channels (others exit in seconds)
   workflow_dispatch:
