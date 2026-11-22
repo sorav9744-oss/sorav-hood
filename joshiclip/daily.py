@@ -354,6 +354,14 @@ def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: boo
     items = plan["channels"].get(channel, [])
     done = {(r["vid"], round(r["start"], 3)) for r in ledger.posted()}
     items = [it for it in items if (it["vid"], round(it["start"], 3)) not in done]
+    # never upload footage that overlaps anything already posted by ANY channel (not just the exact same scene)
+    posted_spans: dict[str, list[tuple[float, float]]] = {}
+    for r in ledger.posted():
+        posted_spans.setdefault(r["vid"], []).append((r["start"], r["end"]))
+    clash = [it for it in items if ledger.overlaps(posted_spans, it["vid"], it["start"], it["end"])]
+    if clash:
+        log(f"[{channel}] {len(clash)} planned scene(s) overlap footage already posted; skipped")
+        items = [it for it in items if it not in clash]
     if os.environ.get("JOSHICLIP_TEST_ONE"):     # end-to-end test: one Short, published right away (no schedule)
         items = items[:1]
         d["schedule"] = False
