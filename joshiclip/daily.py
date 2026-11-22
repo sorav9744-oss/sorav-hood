@@ -44,31 +44,72 @@ def my_channels(d: dict) -> list[str]:
     return out
 
 
+def _fetch_partner_raw(cfg: Config, repo: str, chans: list[str], dst: Path) -> int:
+    """The few small files that matter, straight from raw.githubusercontent.com (no git, no API rate limit):
+    state/posted_<channel>.jsonl + state/plans/<date>.json for the last reserve_days days. 404 = not there yet."""
+    import requests
+    d = cfg["daily"]
+    today = _today(d).date()
+    names = [f"posted_{ch}.jsonl" for ch in chans]
+    names += [f"plans/{(today - dt.timedelta(days=k)).isoformat()}.json" for k in range(int(d.get("reserve_days", 2)) + 1)]
+    n = 0
+    for name in names:
+        url = f"https://raw.githubusercontent.com/{repo}/main/state/{name}"
+        for attempt in range(3):
+            try:
+                r = requests.get(url, timeout=30, headers={"Cache-Control": "no-cache"})
+            except requests.RequestException:
+                if attempt == 2:
+                    raise
+                time.sleep(5 * (attempt + 1))
+                continue
+            if r.status_code == 404:
+                break
+            r.raise_for_status()
+            f = dst / "state" / name
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(r.content)
+            n += 1
+            break
+    return n
+
+
 def sync_partners(cfg: Config, log=print) -> list[str]:
-    """Fetch state/ of the OTHER channels' repos (public; shallow, state/ only) into state/_partners/ so this plan
-    never picks a scene another channel posted or planned. A repo that can't be reached is skipped with a warning."""
+    """Fetch the OTHER channels' repos' state (posted + recent plans) into state/_partners/ so this repo never
+    picks a scene another channel posted or planned. raw files first, a shallow git clone as the fallback.
+    A repo that can't be reached is skipped with a warning (post() re-checks before uploading)."""
     import shutil
     import subprocess
     repo = (os.environ.get("GITHUB_REPOSITORY") or "").lower()
-    mine = {c["name"] for c in cfg["daily"]["channels"] if (c.get("repo") or "").lower() == repo} if repo else         {c["name"] for c in cfg["daily"]["channels"]}
-    repos = sorted({c["repo"] for c in cfg["daily"]["channels"] if c.get("repo") and c["name"] not in mine})
+    allc = cfg["daily"]["channels"]
+    mine = {c["name"] for c in allc if (c.get("repo") or "").lower() == repo} if repo else {c["name"] for c in allc}
+    repos = sorted({c["repo"] for c in allc if c.get("repo") and c["name"] not in mine})
     got = []
     for r in repos:
         dst = ledger.PARTNERS / r.replace("/", "__")
         shutil.rmtree(dst, ignore_errors=True)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        url = f"https://github.com/{r}.git"
+        dst.mkdir(parents=True, exist_ok=True)
         try:
-            for args in (["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-q", url, str(dst)],
+            n = _fetch_partner_raw(cfg, r, [c["name"] for c in allc if c.get("repo") == r], dst)
+            log(f"  partner {r}: state fetched ({n} files)")
+            got.append(r)
+            continue
+        except Exception as e:  # noqa: BLE001
+            log(f"  partner {r}: raw fetch failed ({type(e).__name__}: {str(e)[:200]}); trying git")
+        shutil.rmtree(dst, ignore_errors=True)
+        try:
+            for args in (["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-q",
+                          f"https://github.com/{r}.git", str(dst)],
                          ["-C", str(dst), "sparse-checkout", "set", "--no-cone", "/state/"],
                          ["-C", str(dst), "checkout", "-q"]):
                 ssl = ["-c", "http.sslBackend=schannel"] if os.name == "nt" else []   # Windows certificate store
-                subprocess.run(["git", *ssl, *args], check=True, capture_output=True, text=True, timeout=180)
-            n = len(list((dst / "state").glob("posted_*.jsonl"))) if (dst / "state").exists() else 0
-            log(f"  partner {r}: state fetched ({n} posted files)")
+                p = subprocess.run(["git", *ssl, *args], capture_output=True, text=True, timeout=180)
+                if p.returncode:
+                    raise RuntimeError(f"git {args[0]}: {(p.stderr or p.stdout).strip()[-300:]}")
+            log(f"  partner {r}: state fetched with git")
             got.append(r)
         except Exception as e:  # noqa: BLE001
-            log(f"  WARNING partner {r}: could not fetch its state ({str(e)[:120]}); its scenes are not excluded today")
+            log(f"  WARNING partner {r}: could not fetch its state ({str(e)[:400]}); its scenes are not excluded today")
     return got
 
 
