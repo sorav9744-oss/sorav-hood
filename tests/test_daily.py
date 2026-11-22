@@ -162,3 +162,16 @@ def test_later_channel_yields_scenes_the_partner_took(tmp_path, monkeypatch):
     assert ledger.partner_plan_exists("2026-11-22") and not ledger.partner_plan_exists("2026-11-23")
     d = {"channels": [{"name": "channel_a"}, {"name": "channel_b", "after": "channel_a"}]}
     assert daily._yields(d, "channel_b") and not daily._yields(d, "channel_a")
+
+
+def test_late_run_publishes_soon_instead_of_tomorrow():
+    import datetime as dt
+    d = {"schedule": True, "publish_latest": ["08:30", "09:00"], "publish_old": ["07:00", "07:30", "18:00", "19:00"]}
+    ist = dt.timezone(dt.timedelta(minutes=330))
+    now = dt.datetime(2026, 11, 22, 8, 10, tzinfo=ist)
+    late = [0]
+    assert daily._slot(d, 0, 0, now, False, late) == "2026-11-22T03:10:00Z"   # 07:00 passed -> 08:40 IST
+    assert daily._slot(d, 0, 1, now, False, late) == "2026-11-22T03:40:00Z"   # 07:30 passed -> 09:10 IST
+    assert daily._slot(d, 0, 2, now, False, late) == "2026-11-22T12:30:00Z"   # 18:00 still ahead
+    assert daily._slot(d, 0, 4, now, False, late) == "2026-11-22T04:10:00Z"   # 5th old Short: no 5th time -> soon
+    assert daily._slot(d, 0, 0, now, True, late) == "2026-11-22T03:00:00Z"    # 08:30 still ahead

@@ -320,9 +320,12 @@ def old_vlog_order(cfg: Config, old: list[dict], exhausted, rng: random.Random) 
     return cached[:1] + fresh[:1] + cached[1:] + fresh[1:]
 
 
-def _slot(d: dict, ch_index: int, k: int, now: dt.datetime, latest: bool | None = None) -> str | None:
-    """k-th publish time of the day for this channel (ISO UTC). Past slots roll to tomorrow. With `latest` given and
-    publish_latest / publish_old set, the newest vlog's Shorts and the old vlogs' Shorts each use their own times."""
+def _slot(d: dict, ch_index: int, k: int, now: dt.datetime, latest: bool | None = None,
+          late: list | None = None) -> str | None:
+    """k-th publish time of the day for this channel (ISO UTC). With `latest` given and publish_latest / publish_old
+    set, the newest vlog's Shorts and the old vlogs' Shorts each use their own times. A slot that has already passed
+    (late run, catch-up) or doesn't exist (more Shorts than times): with `late` (a one-item counter) it goes out
+    soon - now + 30 min, then 30 min apart - instead of tomorrow, where it would collide with tomorrow's Shorts."""
     if not d.get("schedule", True):
         return None
     times = d.get("publish_times") or []
@@ -333,7 +336,10 @@ def _slot(d: dict, ch_index: int, k: int, now: dt.datetime, latest: bool | None 
     hh, mm = map(int, times[k % len(times)].split(":"))
     off = (d.get("channel_offset_min") or [0])[ch_index % len(d.get("channel_offset_min") or [0])]
     t = now.replace(hour=hh, minute=mm, second=0, microsecond=0) + dt.timedelta(minutes=off)
-    if t < now + dt.timedelta(minutes=20):
+    if late is not None and (t < now + dt.timedelta(minutes=20) or k >= len(times)):
+        t = now + dt.timedelta(minutes=30 + 30 * late[0])
+        late[0] += 1
+    elif t < now + dt.timedelta(minutes=20):
         t += dt.timedelta(days=1)
     return t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -398,6 +404,7 @@ def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: boo
     today_posts = [r for r in ledger.posted() if r["channel"] == channel and r.get("plan_date") == plan["date"]]
     k_kind = {True: sum(1 for r in today_posts if r.get("latest")), False: sum(1 for r in today_posts if r.get("latest") is False)}
     n_ok, bad = 0, 0
+    late = [0]                                    # passed slots of a late run go out 30 min apart, from now
     by_vid: dict[str, list[dict]] = {}
     for it in items:
         by_vid.setdefault(it["vid"], []).append(it)
@@ -425,7 +432,7 @@ def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: boo
             if svc is None:
                 log(f"[{channel}] rendered (not uploaded): {od / s['file']}"); n_ok += 1; continue
             is_latest = bool(group[0].get("latest"))
-            when = _slot(d, ci, k_kind[is_latest], now, is_latest)
+            when = _slot(d, ci, k_kind[is_latest], _today(d), is_latest, late)   # the time NOW (renders take a while)
             try:
                 yid = youtube.upload(svc, od / s["file"], p["title"], p["description"], p["hashtags"] + p.get("keywords", []),
                                      str(d.get("category_id", "24")), when, d.get("privacy", "public"), log)
