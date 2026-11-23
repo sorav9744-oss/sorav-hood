@@ -378,6 +378,15 @@ daily:                                   # `joshiclip daily run|plan|post` (josh
                                          # instant) + one RANDOM old vlog from the pool (variety; recorded once)
   vlog_pool: 200                         # how far back "older vlogs" go
   max_moments_per_vlog: 20
+  media:                                 # joshiclip/phone.py + mediastore.py: the Android phone downloads, GitHub renders
+    repo: prajmulik49-stack/s-clips-media  # PRIVATE repo; its release "media" holds the handover files (MEDIA_TOKEN)
+    tag: media
+    phone_time: "00:30"                  # IST: phone starts (360p copies -> starts channel_a's run -> its clips -> channel_b)
+    old_vlogs: 4                         # newest + 4 older vlogs a night (2 spares if one has no unused scenes)
+    old_pool: 80                         # older vlogs are picked from the newest 80
+    plan_wait_min: 120                   # phone waits this long for a channel's plan
+    clip_wait_min: 150                   # GitHub's post job waits this long for the phone's 1080p clips
+    keep_days: 4                         # handover files older than this are deleted
   wait_partner_plan_min: 40              # channel_b waits up to 40 min for channel_a's plan of the day (late GitHub crons)
   reserve_days: 2                        # a planned scene stays blocked this long even if its upload failed
   utc_offset_min: 330                    # IST

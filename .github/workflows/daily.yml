@@ -45,6 +45,7 @@ jobs:
     timeout-minutes: 120                # a new vlog is recorded in real time (+ up to 40 min waiting for the other channel's plan)
     env:
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}   # listings + comments via the API (fewer yt-dlp bot checks)
+      MEDIA_TOKEN: ${{ secrets.MEDIA_TOKEN }}           # the phone's downloads (private media repo); see joshiclip/phone.py
       JOSHICLIP_YTDLP_PROXY: ${{ secrets.YTDLP_PROXY }}  # optional: download via a non-datacenter IP
     outputs:
       date: ${{ steps.plan.outputs.date }}
@@ -76,7 +77,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          MEDIA_TOKEN: ${{ secrets.MEDIA_TOKEN }}
         run: |
+          if ($env:MEDIA_TOKEN) { Write-Host "downloads come from the phone (media store): cookie check skipped"; exit 0 }
           $v = python -c "from joshiclip import config, ytapi; c = config.load(); x = ytapi.playlist('UULF' + c['channel']['official_id'][2:], 1); print(x[0]['vid'] if x else 'TeCrjPZ9fds')"
           python -m joshiclip.cookiejar check $v
           $rc = $LASTEXITCODE
@@ -158,10 +161,11 @@ jobs:
     needs: plan
     if: ${{ !inputs.dry_run && needs.plan.outputs.channels != '[]' }}
     runs-on: ${{ vars.RUNNER || 'windows-latest' }}
-    timeout-minutes: 90                 # 6 clips recorded within a 45 min budget + renders
+    timeout-minutes: 200                # waits up to 150 min for the phone's 1080p clips + renders
     env:
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       JOSHICLIP_YTDLP_PROXY: ${{ secrets.YTDLP_PROXY }}
+      MEDIA_TOKEN: ${{ secrets.MEDIA_TOKEN }}
     strategy:
       fail-fast: false
       matrix:

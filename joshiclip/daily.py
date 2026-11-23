@@ -227,7 +227,16 @@ def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False
     titles = sorted(ledger.used_titles())
     cfg["_used_titles"] = titles
     exh = ledger.exhausted()
-    vlogs = list_vlogs(cfg, int(d.get("vlog_pool", 200)))
+    from . import mediastore
+    man = None
+    if mediastore.enabled(cfg):          # the phone downloaded today's vlogs: plan exactly those (latest first)
+        try:
+            man = mediastore.manifest(cfg, date)
+        except Exception as e:  # noqa: BLE001
+            log(f"  media store unavailable ({str(e)[:120]}); planning from the vlog list")
+    vlogs = man["vlogs"] if man else list_vlogs(cfg, int(d.get("vlog_pool", 200)))
+    if man:
+        log(f"  vlogs from the phone's manifest: {', '.join(v['vid'] for v in vlogs)}")
     if not vlogs:
         raise RuntimeError("could not list the channel's vlogs")
     log(f"[daily plan {date}] {len(vlogs)} vlogs in the pool; latest {vlogs[0]['vid']} {vlogs[0]['title']}")
@@ -255,7 +264,7 @@ def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False
     take(vlogs[0], want_latest, label="(latest)")
     # max_per_old_vlog counts all channels; a repo that plans only its own channel takes its share of it
     cap = max(1, round(int(d.get("max_per_old_vlog", 4)) * len(chans) / max(1, len(d["channels"]))))
-    for v in old_vlog_order(cfg, vlogs[1:], exh, rng):
+    for v in ([v for v in vlogs[1:] if v["vid"] not in exh] if man else old_vlog_order(cfg, vlogs[1:], exh, rng)):
         need = {ch: per - len(plan["channels"][ch]) for ch in chans}
         if all(n <= 0 for n in need.values()):
             break

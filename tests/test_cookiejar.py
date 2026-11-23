@@ -27,3 +27,10 @@ def test_days_left_uses_login_cookies_only():
     txt = JAR.format(exp=int(now + 5 * 86400), far=int(now + 400 * 86400))
     assert 4.9 < cj.days_left(txt, now) < 5.1
     assert cj.days_left("# nothing\n", now) is None
+
+
+def test_media_names_are_safe_and_spans_match():
+    from joshiclip import mediastore as ms
+    assert ms.clip_name("awYJWalvK_0", 12.345, 56.7) == "clip_awYJWalvK_0_12.35_56.70.mkv"
+    assert ms.safe("a b/c?.mkv") == "a_b_c_.mkv"
+    assert not ms.enabled({"daily": {}})

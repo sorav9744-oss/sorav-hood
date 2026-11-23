@@ -59,7 +59,16 @@ def _ytdlp(cfg: Config, args: list[str], waits=(90, 300)) -> None:
 
 
 def _fetch_360(cfg: Config, url: str, vid: str, wd: Path, src: Path, log=print) -> None:
-    """360p analysis copy + Hindi captions: yt-dlp, or played + recorded in Chrome (JOSHICLIP_FETCH=record/auto)."""
+    """360p analysis copy + Hindi captions: the phone's copy (media store) first, else yt-dlp, else recorded in
+    Chrome (JOSHICLIP_FETCH=record/auto)."""
+    from . import mediastore
+    if mediastore.enabled(cfg):
+        try:
+            if mediastore.fetch_360(cfg, vid, wd, src, log):
+                return
+            log("  no 360p copy from the phone for this vlog; fetching it here")
+        except Exception as e:  # noqa: BLE001
+            log(f"  media store unavailable ({str(e)[:120]}); fetching here")
     m = record.mode()
     if m != "record":
         f = cfg["fast"]
@@ -88,7 +97,23 @@ def _fetch_360(cfg: Config, url: str, vid: str, wd: Path, src: Path, log=print) 
 
 
 def _get_clips(cfg: Config, url: str, vid: str, spans: list, log=print) -> list[Path]:
-    """HD spans: yt-dlp --download-sections in parallel, or recorded one by one in Chrome."""
+    """HD spans: the phone's 1080p clips (media store) first, else yt-dlp --download-sections, else Chrome."""
+    from . import mediastore
+    if mediastore.enabled(cfg):
+        try:
+            got = mediastore.wait_clips(cfg, vid, spans, log)
+        except Exception as e:  # noqa: BLE001
+            log(f"  media store unavailable ({str(e)[:120]}); fetching the clips here")
+            got = [None] * len(spans)
+        if all(g is not None for g in got):
+            return got
+        rest = [sp for sp, g in zip(spans, got) if g is None]
+        fetched = iter(_get_clips_here(cfg, url, vid, rest, log))
+        return [g if g is not None else next(fetched) for g in got]
+    return _get_clips_here(cfg, url, vid, spans, log)
+
+
+def _get_clips_here(cfg: Config, url: str, vid: str, spans: list, log=print) -> list[Path]:
     m = record.mode()
     if m != "record":
         try:
