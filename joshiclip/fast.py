@@ -178,7 +178,7 @@ def ingest_lite(cfg: Config, target, latest, vid, log=print):
             meta_p.write_text(json.dumps(meta, indent=1), encoding="utf-8")
             return vid, wd, meta
     for p in wd.glob("src360.*.json3"):
-        p.rename(wd / p.name.replace("src360", vid))
+        p.replace(wd / p.name.replace("src360", vid))   # replace: Windows rename fails if it exists
     t_dl = time.perf_counter() - t
     t = time.perf_counter()
     info = media.probe(src)
