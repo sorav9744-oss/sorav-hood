@@ -219,9 +219,14 @@ def check(cfg: Config) -> int:
     except Exception as e:  # noqa: BLE001
         log(f"FAIL media repo: {e}"); ok = False
     for c in cfg["daily"]["channels"]:
-        r = _gh("GET", f"{API}/repos/{c['repo']}/actions/workflows/daily.yml")
-        log(f"{'OK' if r.status_code == 200 else 'FAIL'} can start {c['repo']}'s runs (HTTP {r.status_code})")
-        ok &= r.status_code == 200
+        try:
+            code = _gh("GET", f"{API}/repos/{c['repo']}/actions/workflows/daily.yml").status_code
+        except Exception as e:  # noqa: BLE001
+            code = str(e)[:80]
+        log(f"{'OK' if code == 200 else 'FAIL'} can start {c['repo']}'s runs ({code})")
+        ok &= code == 200
+    if not ok:
+        log("HINT: 401 / Bad credentials = MEDIA_TOKEN wrong or empty. Fix: rm ~/s-clips/.env && bash ~/setup.sh")
     try:
         _ytdlp(["--simulate", "-f", cfg["fast"]["clip_format"], "https://www.youtube.com/watch?v=PPWTwGU-cqQ"], tries=1)
         log("OK yt-dlp can read YouTube from here")

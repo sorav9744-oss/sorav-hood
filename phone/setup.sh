@@ -9,10 +9,20 @@ pip install -U "yt-dlp[default]" requests pyyaml
 echo "== code"
 if [ ! -d ~/s-clips ]; then git clone https://github.com/prajmulik49-stack/s-clips.git ~/s-clips; fi
 cd ~/s-clips && git pull --ff-only
-if [ ! -f .env ]; then
+# keys: asked again until they look right (a wrong .env from an earlier try is replaced)
+T=$(grep -s '^MEDIA_TOKEN=' .env | cut -d= -f2- | tr -d ' \r\n')
+K=$(grep -s '^YOUTUBE_API_KEY=' .env | cut -d= -f2- | tr -d ' \r\n')
+if [[ "$T" != ghp_* || "$K" != AIza* ]]; then
   echo "== keys (stored only on this phone, in ~/s-clips/.env)"
-  read -r -p "MEDIA_TOKEN (GitHub token, starts with ghp_): " T
-  read -r -p "YOUTUBE_API_KEY (starts with AIza): " K
+  T=""; K=""
+  while [[ "$T" != ghp_* ]]; do
+    read -r -p "Paste MEDIA_TOKEN (starts with ghp_) then press Enter: " T; T=$(echo "$T" | tr -d ' \r\n')
+    [[ "$T" == ghp_* ]] || echo "   that doesn't start with ghp_ - try again"
+  done
+  while [[ "$K" != AIza* ]]; do
+    read -r -p "Paste YOUTUBE_API_KEY (starts with AIza) then press Enter: " K; K=$(echo "$K" | tr -d ' \r\n')
+    [[ "$K" == AIza* ]] || echo "   that doesn't start with AIza - try again"
+  done
   printf "MEDIA_TOKEN=%s\nYOUTUBE_API_KEY=%s\n" "$T" "$K" > .env
   chmod 600 .env
 fi
