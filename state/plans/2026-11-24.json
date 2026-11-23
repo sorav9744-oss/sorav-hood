@@ -1,0 +1,113 @@
+{
+ "channels": {
+  "channel_b": [
+   {
+    "cand": 35,
+    "end": 558.93,
+    "final": 1.17185,
+    "latest": true,
+    "start": 518.83,
+    "title": "Kya Chahie Kya Chahie? 😜😂",
+    "title_source": "question",
+    "vid": "h-SIxS8NiY0",
+    "viewer_score": 0.2463
+   },
+   {
+    "cand": 15,
+    "end": 341.774,
+    "final": 1.079054,
+    "latest": true,
+    "start": 299.5,
+    "title": "New Dog For Farm House 😄",
+    "title_source": "viewer_comment",
+    "vid": "h-SIxS8NiY0",
+    "viewer_score": 0.0849
+   },
+   {
+    "cand": 19,
+    "end": 577.52,
+    "final": 2.155699,
+    "latest": false,
+    "start": 539.57,
+    "title": "Chhota Bhai Padora Bhai 😅",
+    "title_source": "viewer_comment",
+    "vid": "6EX1SvZAuxI",
+    "viewer_score": 0.7236
+   },
+   {
+    "cand": 2,
+    "end": 121.32,
+    "final": 1.48222,
+    "latest": false,
+    "start": 81.3,
+    "title": "Kisi Ne Yeh Nahi Pucha Tha 😅",
+    "title_source": "viewer_comment",
+    "vid": "6EX1SvZAuxI",
+    "viewer_score": 0.7956
+   },
+   {
+    "cand": 5,
+    "end": 569.7,
+    "final": 0.914285,
+    "latest": false,
+    "start": 535.42,
+    "title": "Acting Perfect Hai 😂",
+    "title_source": "viewer_comment",
+    "vid": "TeCrjPZ9fds",
+    "viewer_score": 0.2307
+   },
+   {
+    "cand": 15,
+    "end": 404.0,
+    "final": 2.325385,
+    "latest": false,
+    "start": 353.52,
+    "title": "Bechare Chacha Ji 😢",
+    "title_source": "viewer_comment",
+    "vid": "M8a-0T0uc9k",
+    "viewer_score": 0.9957
+   }
+  ]
+ },
+ "date": "2026-11-24",
+ "max_moments_per_vlog": 20,
+ "used_titles": [
+  "Amma Ki Smile 😄",
+  "Apko Decoration Bhut Pasand Hai 😄",
+  "Avntika Kaa Reaction 😂",
+  "Awantika How Beautiful 😍",
+  "Bulldozer Yogi Baba 😄",
+  "Defender Kab Aayegi 😄",
+  "Donon Hi Fushi Bomb Hai 😂",
+  "Farm House Monsoon Adventure Park 😅",
+  "Good Use Of Brain All Time 😂",
+  "I Hate My Mind 🤯",
+  "Jay Shree Ram 😄",
+  "Jiddi Hai Bhai Bahut Jiddi 🥺😥",
+  "Kunali Aura Minus 9999 😂",
+  "Kunali Kya Kar Raha Hai? 😜😂",
+  "Kya Acting Kar Raha Hai 😂",
+  "Lagta Hai Sabka Life Insurance Hai 😄",
+  "Man Vs Wild 😂",
+  "New Vlog Old Recording Vlog 😄",
+  "Nirmal Bhaiya Finllay Back 😄",
+  "Og Line By Sourav Joshi 😄",
+  "Piyush Ka Hair 😢",
+  "Piyush Ko Mobile Gift Karo 😢",
+  "Pyuish Phone Lene Aaiga Dubara 😂",
+  "Sabse Achi Acting Bed Ne Ki 😅",
+  "Sabse Budhi Generation 😂",
+  "Samne Dekho Kitna Traiphik Ho Raha? 😜😂",
+  "Watch At 0 25x 😄",
+  "Ye Kesi Aavaj He 😂",
+  "Ye Mast Tha 😂",
+  "Ye Tino 1v2 Na Karde 😅😂",
+  "Ye To Katarnak Awaj De Raha Hai 😮"
+ ],
+ "vlog_titles": {
+  "6EX1SvZAuxI": "DEFENDER Vs G-Wagon 😍 Tug Of War",
+  "M8a-0T0uc9k": "Circle Game With Family 😍",
+  "TeCrjPZ9fds": "Raatko Rone ki Awaz Aarhi h 😳",
+  "h-SIxS8NiY0": "Finally Farm House Ka Kaam Start Hogya 😍"
+ }
+}
