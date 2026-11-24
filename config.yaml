@@ -391,8 +391,9 @@ daily:                                   # `joshiclip daily run|plan|post` (josh
   auto_fill: true                        # the Upload page fills the buffer by itself after Windows login + every hour
   auto_fill_check_min: 60
   auto_fill_slack: 3                     # starts when at least this many Shorts under the target are missing (half a day)
-  auto_fill_on_battery: false            # waits for the charger (rendering drains the battery)
-  auto_fill_on_hotspot: false            # waits for Wi-Fi when the laptop uses an iPhone hotspot (172.20.10.x = mobile data)
+  auto_fill_on_battery: true             # runs without the charger ...
+  auto_fill_battery_min_pct: 20          # ... but only while the battery is above this (rendering drains it fast)
+  auto_fill_on_hotspot: true             # 2026-11-24: the iPhone hotspot is the only internet and unlimited, so it is allowed
   buffer_retry_rounds: 6                 # blocked download / busy YouTube: the batch waits and tries only the missing ones again
   buffer_retry_wait_min: 20              # ... this long between tries (6 x 20 min = 2 h), PC kept awake
   buffer_days: 4                        # PC Upload page keeps this many days of Shorts scheduled ahead (6 a day per channel = 48)

@@ -125,6 +125,10 @@ def test_auto_fill_starts_only_when_it_is_safe_and_needed(tmp_path, monkeypatch)
     monkeypatch.setattr(pcapp, "lan_ip", lambda: "192.168.1.5")
     monkeypatch.setattr(pcapp, "_plugged_in", lambda: False)
     assert "battery" in pcapp._auto_reason(d)
+    monkeypatch.setattr(pcapp, "_battery_pct", lambda: 14)
+    assert "battery" in pcapp._auto_reason({"auto_fill_on_battery": True})              # allowed, but too empty
+    monkeypatch.setattr(pcapp, "_battery_pct", lambda: 60)
+    assert pcapp._auto_reason({"auto_fill_on_battery": True, "auto_fill_battery_min_pct": 20}) is None
     monkeypatch.setattr(pcapp, "_plugged_in", lambda: True)
     monkeypatch.setattr(pcapp, "_other_jobs", lambda: True)
     assert "another" in pcapp._auto_reason(d)                              # never next to a manual run

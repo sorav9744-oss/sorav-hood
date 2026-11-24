@@ -95,9 +95,10 @@ def _cfg() -> dict:
     return yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8")).get("daily", {})
 
 
-def _plugged_in() -> bool:
+def _sys_power() -> tuple[int, int]:
+    """(AC line status, battery percent): AC 0 = on battery, 1 = plugged in, 255 = unknown; percent 255 = unknown."""
     if os.name != "nt":
-        return True
+        return 1, 100
     import ctypes
 
     class Power(ctypes.Structure):
@@ -106,7 +107,16 @@ def _plugged_in() -> bool:
                     ("BatteryLifeTime", ctypes.c_ulong), ("BatteryFullLifeTime", ctypes.c_ulong)]
     s = Power()
     ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s))
-    return s.ACLineStatus != 0          # 0 = on battery; 1 = plugged in; 255 = unknown (treated as plugged in)
+    return s.ACLineStatus, s.BatteryLifePercent
+
+
+def _plugged_in() -> bool:
+    return _sys_power()[0] != 0          # unknown (255) counts as plugged in
+
+
+def _battery_pct() -> int:
+    p = _sys_power()[1]
+    return 100 if p == 255 else p
 
 
 def _other_jobs() -> bool:
@@ -135,8 +145,12 @@ def _auto_reason(d: dict) -> str | None:
         return "switched off (config daily.auto_fill)"
     if lan_ip().startswith("172.20.10.") and not d.get("auto_fill_on_hotspot", False):
         return "on an iPhone hotspot (mobile data); waiting for Wi-Fi"
-    if not _plugged_in() and not d.get("auto_fill_on_battery", False):
-        return "laptop is on battery; plug it in"
+    if not _plugged_in():
+        if not d.get("auto_fill_on_battery", False):
+            return "laptop is on battery; plug it in"
+        floor = int(d.get("auto_fill_battery_min_pct", 20))
+        if _battery_pct() < floor:         # a run started on an almost empty battery would just be cut off
+            return f"battery is at {_battery_pct()}% (runs on battery only above {floor}%); plug it in"
     if _other_jobs():
         return "another Shorts job is running"
     return None
