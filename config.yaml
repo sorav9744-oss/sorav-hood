@@ -381,6 +381,7 @@ daily:                                   # `joshiclip daily run|plan|post` (josh
   media:                                 # joshiclip/phone.py + mediastore.py: the Android phone downloads, GitHub renders
     repo: prajmulik49-stack/s-clips-media  # PRIVATE repo; its release "media" holds the handover files (MEDIA_TOKEN)
     tag: media
+    phone_enabled: false                 # 2026-11-24: phone retired (vivo stopped Termux); the PC Upload page does it
     phone_time: "00:30"                  # IST: phone starts (360p copies -> starts channel_a's run -> its clips -> channel_b)
     old_vlogs: 3                         # newest + 3 older vlogs a night (1 spare if one has no unused scenes; ~0.55 GB down + up per night)
     old_pool: 80                         # older vlogs are picked from the newest 80

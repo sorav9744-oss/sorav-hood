@@ -205,11 +205,11 @@ def assign(ms: list[dict], need: dict[str, int], cap: int | None = None) -> dict
     return got
 
 
-def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False) -> dict:
+def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False, date: str | None = None) -> dict:
     cfg = prepare_cfg(cfg)
     d = cfg["daily"]
     now = _today(d)
-    date = now.date().isoformat()
+    date = date or now.date().isoformat()          # a later date: the PC plans several days ahead
     if ledger.plan_path(date).exists() and not (replan or dry_run):     # a re-run continues today's plan
         log(f"[daily plan {date}] reusing {ledger.plan_path(date)}")
         return json.loads(ledger.plan_path(date).read_text(encoding="utf-8"))
@@ -353,12 +353,16 @@ def _slot(d: dict, ch_index: int, k: int, now: dt.datetime, latest: bool | None 
     return t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: bool = True, log=print) -> int:
+def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: bool = True, log=print,
+         date: str | None = None) -> int:
     from . import fast, upload, youtube
     cfg = prepare_cfg(cfg)
     d = cfg["daily"]
     now = _today(d)
-    plan = plan or json.loads(ledger.plan_path(now.date().isoformat()).read_text(encoding="utf-8"))
+    date = date or (plan or {}).get("date") or now.date().isoformat()
+    plan = plan or json.loads(ledger.plan_path(date).read_text(encoding="utf-8"))
+    ahead = date > now.date().isoformat()             # a day planned ahead: its own slots, never "late"
+    quota_hit = False                                 # after YouTube's daily limit: queue the rest for GitHub
     cfg["_used_titles"] = plan["used_titles"]                       # the exact settings the plan was made with
     cfg["engine"]["max_shorts"] = plan["max_moments_per_vlog"]
     # the plan's comments (cached in work/): fresh comments would re-score the moments and move the planned scenes
@@ -441,21 +445,43 @@ def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: boo
             if svc is None:
                 log(f"[{channel}] rendered (not uploaded): {od / s['file']}"); n_ok += 1; continue
             is_latest = bool(group[0].get("latest"))
-            when = _slot(d, ci, k_kind[is_latest], _today(d), is_latest, late)   # the time NOW (renders take a while)
-            try:
-                yid = youtube.upload(svc, od / s["file"], p["title"], p["description"], p["hashtags"] + p.get("keywords", []),
-                                     str(d.get("category_id", "24")), when, d.get("privacy", "public"), log)
-            except youtube.QuotaExceeded as e:
-                log(f"[{channel}] YouTube quota reached ({e}); stopping for today"); return 1 if n_ok == 0 else 0
-            rec.update(yt_id=yid, publish_at=when, uploaded=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
+            base = _target_base(d, date) if ahead else _today(d)          # the time NOW (renders take a while)
+            when = _slot(d, ci, k_kind[is_latest], base, is_latest, late)
+            tags = p["hashtags"] + p.get("keywords", [])
+            yid = None
+            if not quota_hit:
+                try:
+                    yid = youtube.upload(svc, od / s["file"], p["title"], p["description"], tags,
+                                         str(d.get("category_id", "24")), when, d.get("privacy", "public"), log)
+                except youtube.QuotaExceeded as e:
+                    quota_hit = True
+                    log(f"[{channel}] YouTube's daily upload limit reached ({str(e)[:80]}); the rest go to the queue")
+            if yid is None:
+                if not _queue_ok(cfg):
+                    log(f"[{channel}] {s['file']}: no upload queue (MEDIA_TOKEN); kept for a later run"); bad += 1; continue
+                from . import mediastore
+                name = mediastore.safe(f"q_{channel}_{date}_{s['file'][:2]}_{vid}")
+                meta = {"channel": channel, "vid": vid, "start": s["start"], "end": s["end"], "title": s["title"],
+                        "yt_title": p["title"], "description": p["description"], "tags": tags, "publish_at": when,
+                        "category_id": str(d.get("category_id", "24")), "plan_date": date, "latest": is_latest,
+                        "file": s["file"]}
+                mf = od / (name + ".json")
+                mf.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+                mediastore.upload(cfg, od / s["file"], name + ".mp4")
+                mediastore.upload(cfg, mf, name + ".json")
+                rec.update(queued=True, publish_at=when, uploaded=None)
+                log(f"[{channel}] queued for GitHub: {p['title']}  (publish {when})")
+            else:
+                rec.update(yt_id=yid, publish_at=when, uploaded=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
             if fb_on:      # Facebook can never stop or undo YouTube: any error is only logged
                 try:
                     rec["fb_id"] = facebook.post_reel(cfg, od / s["file"], facebook.caption(
                         p["title"], p["hashtags"], cfg.get("upload", {}).get("credit_line"), p.get("link")), when, log)
                 except Exception as e:  # noqa: BLE001
                     log(f"[{channel}] facebook skipped for {s['file']}: {str(e)[:200]}")
-            ledger.git_commit([ledger.record_post(channel, rec)], f"{channel}: posted {yid}", _push(cfg), log)
-            log(f"[{channel}] uploaded https://youtu.be/{yid}  {p['title']}  (publish {when or 'now'})")
+            ledger.git_commit([ledger.record_post(channel, rec)], f"{channel}: posted {yid or 'queued'}", _push(cfg), log)
+            if yid:
+                log(f"[{channel}] uploaded https://youtu.be/{yid}  {p['title']}  (publish {when or 'now'})")
             k_kind[is_latest] += 1; n_ok += 1
             if d.get("delete_after_upload", True):
                 _delete_uploaded(od, s["file"])
@@ -463,6 +489,69 @@ def post(cfg: Config, channel: str, plan: dict | None = None, upload_videos: boo
             _delete_sources(od, log)
     log(f"[{channel}] done: {n_ok} posted, {bad} failed")
     return 0 if n_ok else 1
+
+
+def _target_base(d: dict, date: str) -> dt.datetime:
+    """Just after midnight of a future date (IST): its slots are computed as for that day."""
+    tz = dt.timezone(dt.timedelta(minutes=int(d.get("utc_offset_min", 330))))
+    return dt.datetime.fromisoformat(date).replace(hour=0, minute=5, tzinfo=tz)
+
+
+def _queue_ok(cfg: Config) -> bool:
+    from . import mediastore
+    return mediastore.enabled(cfg)
+
+
+def upload_queue(cfg: Config, channel: str, log=print) -> int:
+    """GitHub side of the PC batch: Shorts the PC rendered but YouTube's daily limit didn't allow wait in the media
+    store (q_<channel>_*). Upload the earliest first until the limit; a passed slot goes out 30 min apart from now.
+    Upload only - GitHub never downloads from YouTube here."""
+    import tempfile
+    from . import mediastore, youtube
+    d = cfg["daily"]
+    chans = [c["name"] for c in d["channels"]]
+    prefix = d["channels"][chans.index(channel)]["env"]
+    have = mediastore.assets(cfg)
+    items = []
+    for name in have:
+        if name.startswith(f"q_{channel}_") and name.endswith(".json"):
+            p = Path(tempfile.mkdtemp()) / name
+            if mediastore.download(cfg, name, p, have):
+                items.append((json.loads(p.read_text(encoding="utf-8")), name[:-5]))
+    if not items:
+        log(f"[{channel}] queue empty")
+        return 0
+    items.sort(key=lambda x: x[0]["publish_at"] or "")
+    svc = youtube.service(prefix)
+    log(f"[{channel}] {len(items)} queued Shorts; uploading as {youtube.channel_name(svc)}")
+    now = dt.datetime.now(dt.timezone.utc)
+    late, n = 0, 0
+    for meta, stem in items:
+        when = meta.get("publish_at")
+        if when and dt.datetime.strptime(when, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc) < now + dt.timedelta(minutes=20):
+            when = (now + dt.timedelta(minutes=30 + 30 * late)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            late += 1
+        mp4 = Path(tempfile.mkdtemp()) / (stem + ".mp4")
+        if not mediastore.download(cfg, stem + ".mp4", mp4, have):
+            log(f"[{channel}] {stem}: video missing in the store"); continue
+        try:
+            yid = youtube.upload(svc, mp4, meta["yt_title"], meta["description"], meta["tags"],
+                                 meta.get("category_id", "24"), when, d.get("privacy", "public"), log)
+        except youtube.QuotaExceeded:
+            log(f"[{channel}] YouTube's daily limit reached; the rest wait for the next run")
+            break
+        rec = {k: meta[k] for k in ("channel", "vid", "start", "end", "title", "plan_date", "latest", "file")}
+        rec.update(yt_id=yid, publish_at=when, uploaded=now.isoformat(timespec="seconds"), from_queue=True)
+        ledger.git_commit([ledger.record_post(channel, rec)], f"{channel}: posted {yid} (queue)", _push(cfg), log)
+        for ext in (".mp4", ".json"):
+            a = have.get(stem + ext)
+            if a:
+                mediastore._req("DELETE", f"{mediastore.API}/repos/{mediastore._cfg(cfg)['repo']}/releases/assets/{a['id']}",
+                                headers=mediastore._h())
+        log(f"[{channel}] uploaded https://youtu.be/{yid}  {meta['yt_title']}  (publish {when})")
+        n += 1
+    log(f"[{channel}] queue: {n} uploaded")
+    return 0
 
 
 def _delete_uploaded(od: Path, file: str) -> None:

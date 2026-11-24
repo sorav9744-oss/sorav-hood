@@ -1,5 +1,6 @@
 work/
 state/_partners/
+.channels/
 .ytjar/
 out/
 data/

@@ -157,6 +157,9 @@ def wait_plan(repo: str, date: str, minutes: float) -> dict | None:
 
 def run(cfg: Config) -> int:
     m = cfg["daily"].get("media") or {}
+    if not m.get("phone_enabled", True):
+        log("phone job is switched off (config daily.media.phone_enabled); nothing to do")
+        return 0
     date = _ist_now(cfg).date().isoformat()
     log(f"===== phone run {date}")
     try:

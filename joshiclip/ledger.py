@@ -46,7 +46,7 @@ def recent_plans(today: str, reserve_days: int) -> list[dict]:
             d = dt.date.fromisoformat(p.stem)
         except ValueError:
             continue
-        if 0 <= (t - d).days <= reserve_days:
+        if (t - d).days <= reserve_days:                 # recent days and every FUTURE day (planned ahead)
             out.append(json.loads(p.read_text(encoding="utf-8")))
     return out
 
@@ -75,7 +75,7 @@ def partner_spans(today: str, reserve_days: int = 2) -> dict[str, list[tuple[flo
                 age = (t - dt.date.fromisoformat(p.stem)).days
             except ValueError:
                 continue
-            if 0 <= age <= reserve_days:
+            if age <= reserve_days:                          # incl. days planned ahead
                 for ch in json.loads(p.read_text(encoding="utf-8")).get("channels", {}).values():
                     for it in ch:
                         u.setdefault(it["vid"], []).append((it["start"], it["end"]))

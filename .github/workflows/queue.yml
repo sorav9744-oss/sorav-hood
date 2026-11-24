@@ -1,0 +1,42 @@
+# Upload-only: Shorts the PC already made but YouTube's daily upload limit didn't allow wait in the private media
+# repo (q_<channel>_*). Every 3 hours this uploads the earliest ones with their scheduled time and records them.
+# No YouTube download here (GitHub's servers are bot-checked for downloads, not for uploads).
+name: upload-queue
+
+on:
+  schedule:
+    - cron: "20 */3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: upload-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: write                   # records (state/) of what was posted
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONUTF8: "1"
+      MEDIA_TOKEN: ${{ secrets.MEDIA_TOKEN }}
+      YT_A_CLIENT_ID: ${{ secrets.YT_A_CLIENT_ID }}
+      YT_A_CLIENT_SECRET: ${{ secrets.YT_A_CLIENT_SECRET }}
+      YT_A_REFRESH_TOKEN: ${{ secrets.YT_A_REFRESH_TOKEN || secrets.YT_REFRESH_TOKEN }}
+      YT_B_CLIENT_ID: ${{ secrets.YT_B_CLIENT_ID }}
+      YT_B_CLIENT_SECRET: ${{ secrets.YT_B_CLIENT_SECRET }}
+      YT_B_REFRESH_TOKEN: ${{ secrets.YT_B_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Packages (upload only - small)
+        run: pip install -q pyyaml requests google-api-python-client google-auth google-auth-oauthlib
+      - name: Upload the queue
+        run: |
+          git config user.name "joshiclip-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python -c "from joshiclip import config, daily; c = config.load(); [daily.upload_queue(c, ch) for ch in daily.my_channels(c['daily'])]"
