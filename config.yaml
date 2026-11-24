@@ -388,6 +388,11 @@ daily:                                   # `joshiclip daily run|plan|post` (josh
     plan_wait_min: 120                   # phone waits this long for a channel's plan
     clip_wait_min: 150                   # GitHub's post job waits this long for the phone's 1080p clips
     keep_days: 4                         # handover files older than this are deleted
+  auto_fill: true                        # the Upload page fills the buffer by itself after Windows login + every hour
+  auto_fill_check_min: 60
+  auto_fill_slack: 3                     # starts when at least this many Shorts under the target are missing (half a day)
+  auto_fill_on_battery: false            # waits for the charger (rendering drains the battery)
+  auto_fill_on_hotspot: false            # waits for Wi-Fi when the laptop uses an iPhone hotspot (172.20.10.x = mobile data)
   buffer_retry_rounds: 6                 # blocked download / busy YouTube: the batch waits and tries only the missing ones again
   buffer_retry_wait_min: 20              # ... this long between tries (6 x 20 min = 2 h), PC kept awake
   buffer_days: 4                        # PC Upload page keeps this many days of Shorts scheduled ahead (6 a day per channel = 48)

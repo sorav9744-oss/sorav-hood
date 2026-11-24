@@ -109,3 +109,34 @@ def test_a_short_plan_is_filled_not_reused(tmp_path, monkeypatch):
     asked.clear()
     daily.plan_day(cfg, False, lambda *a: None, date="2026-11-25")   # full now: reused, nothing analysed
     assert asked == []
+
+
+def test_auto_fill_starts_only_when_it_is_safe_and_needed(tmp_path, monkeypatch):
+    from joshiclip import pcapp
+    monkeypatch.setattr(pcapp, "ROOT", tmp_path)
+    monkeypatch.setattr(pcapp, "lan_ip", lambda: "192.168.1.5")
+    monkeypatch.setattr(pcapp, "_plugged_in", lambda: True)
+    monkeypatch.setattr(pcapp, "_other_jobs", lambda: False)
+    d = {"auto_fill": True}
+    assert pcapp._auto_reason(d) is None                                   # all clear
+    monkeypatch.setattr(pcapp, "lan_ip", lambda: "172.20.10.4")
+    assert "hotspot" in pcapp._auto_reason(d)                              # mobile data: wait
+    assert pcapp._auto_reason({"auto_fill_on_hotspot": True}) is None
+    monkeypatch.setattr(pcapp, "lan_ip", lambda: "192.168.1.5")
+    monkeypatch.setattr(pcapp, "_plugged_in", lambda: False)
+    assert "battery" in pcapp._auto_reason(d)
+    monkeypatch.setattr(pcapp, "_plugged_in", lambda: True)
+    monkeypatch.setattr(pcapp, "_other_jobs", lambda: True)
+    assert "another" in pcapp._auto_reason(d)                              # never next to a manual run
+    monkeypatch.setattr(pcapp, "_other_jobs", lambda: False)
+    (tmp_path / ".pause_auto").write_text("")
+    assert "paused" in pcapp._auto_reason(d)
+    (tmp_path / ".pause_auto").unlink()
+    assert "switched off" in pcapp._auto_reason({"auto_fill": False})
+
+    inv = {"channel_a": 24, "channel_b": 22}
+    monkeypatch.setattr(pcbatch, "inventory", lambda *a, **k: inv)
+    cfg = {"buffer_days": 4, "per_channel": 6, "auto_fill_slack": 3}
+    assert not pcapp._needs_fill(cfg)                                      # 24 and 22 of 24: within half a day
+    inv["channel_b"] = 20
+    assert pcapp._needs_fill(cfg)                                          # 4 missing: top up

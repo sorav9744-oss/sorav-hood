@@ -1,7 +1,10 @@
-"""The Upload page: http://localhost:8765 on the PC (opens at Windows login), or from the iPhone on the same Wi-Fi
-with the private link shown on the page. One click = joshiclip.pcbatch for 1-3 days, live progress + links.
+"""The Upload page: http://localhost:8790 on the PC, or from the iPhone on the same Wi-Fi with the private link shown
+in the page. It also fills the buffer BY ITSELF: it starts at Windows login (Startup shortcut), waits 2 minutes for
+the network, then every daily.auto_fill_check_min minutes keeps `buffer_days` days of Shorts scheduled ahead
+(joshiclip.pcbatch). It does nothing while the laptop is on battery or on an iPhone hotspot, while another Shorts job
+is running, or while a file named .pause_auto exists in the project folder. A click on the page does the same, now.
 
-  pythonw -m joshiclip.pcapp --open     what the Windows Startup shortcut runs
+  pythonw -m joshiclip.pcapp            what the Windows Startup shortcut runs (add --open to also open the browser)
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -52,11 +56,16 @@ def lan_ip() -> str:
         return "this-pc"
 
 
-def start(days: int) -> bool:
+BELOW_NORMAL = 0x00004000          # Windows priority class: the laptop stays responsive while Shorts are made
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def start(days: int, auto: bool = False) -> bool:
     with LOCK:
         if STATE["running"]:
             return False
-        STATE.update(running=True, started=dt.datetime.now().strftime("%d %b %H:%M"), days=days, rc=None)
+        STATE.update(running=True, started=dt.datetime.now().strftime("%d %b %H:%M"), days=days, rc=None,
+                     by="automatic" if auto else "your click")
         STATE["lines"].clear()
     threading.Thread(target=_work, args=(days,), daemon=True).start()
     return True
@@ -70,15 +79,98 @@ def _work(days: int) -> None:
         lf.write(f"\n===== {dt.datetime.now():%Y-%m-%d %H:%M} upload {days} day(s)\n")
         p = subprocess.Popen([sys.executable.replace("pythonw", "python"), "-m", "joshiclip.pcbatch", "run", "--days",
                               str(days)], cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             text=True, encoding="utf-8", errors="replace",
-                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                             text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW | BELOW_NORMAL)
         for line in p.stdout:
             line = line.rstrip()
             lf.write(line + "\n"); lf.flush()
             if line and not noise.search(line):
                 STATE["lines"].append(line)
         rc = p.wait()
-    STATE.update(running=False, rc=rc)
+    STATE.update(running=False, rc=rc, finished=time.time())
+
+
+# ---------------------------------------------------------------- automatic fill
+def _cfg() -> dict:
+    import yaml
+    return yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8")).get("daily", {})
+
+
+def _plugged_in() -> bool:
+    if os.name != "nt":
+        return True
+    import ctypes
+
+    class Power(ctypes.Structure):
+        _fields_ = [("ACLineStatus", ctypes.c_ubyte), ("BatteryFlag", ctypes.c_ubyte),
+                    ("BatteryLifePercent", ctypes.c_ubyte), ("SystemStatusFlag", ctypes.c_ubyte),
+                    ("BatteryLifeTime", ctypes.c_ulong), ("BatteryFullLifeTime", ctypes.c_ulong)]
+    s = Power()
+    ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s))
+    return s.ACLineStatus != 0          # 0 = on battery; 1 = plugged in; 255 = unknown (treated as plugged in)
+
+
+def _other_jobs() -> bool:
+    """Another Shorts job (a manual run, a render worker) is running: never start a second one next to it."""
+    if os.name != "nt":
+        return False
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                            "Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR Name='pythonw.exe'\" | "
+                            "ForEach-Object { $_.CommandLine }"], capture_output=True, text=True, timeout=40,
+                           creationflags=NO_WINDOW)
+    except Exception:  # noqa: BLE001
+        return False
+    for line in r.stdout.splitlines():
+        low = line.lower()
+        if ("joshiclip" in low or "run_today" in low or "topup_" in low) and "pcapp" not in low:
+            return True
+    return False
+
+
+def _auto_reason(d: dict) -> str | None:
+    """Why the automatic fill must not start right now (None = go)."""
+    if (ROOT / ".pause_auto").exists():
+        return "paused (the .pause_auto file exists)"
+    if not d.get("auto_fill", True):
+        return "switched off (config daily.auto_fill)"
+    if lan_ip().startswith("172.20.10.") and not d.get("auto_fill_on_hotspot", False):
+        return "on an iPhone hotspot (mobile data); waiting for Wi-Fi"
+    if not _plugged_in() and not d.get("auto_fill_on_battery", False):
+        return "laptop is on battery; plug it in"
+    if _other_jobs():
+        return "another Shorts job is running"
+    return None
+
+
+def _needs_fill(d: dict) -> bool:
+    from .pcbatch import inventory
+    target = int(d.get("buffer_days", 4)) * int(d.get("per_channel", 6))
+    slack = int(d.get("auto_fill_slack", 3))            # half a day missing is worth a run
+    return any(n < target - slack for n in inventory().values())
+
+
+def auto_loop() -> None:
+    time.sleep(120)                                      # the network needs a moment after Windows login
+    while True:
+        wait = 60
+        try:
+            d = _cfg()
+            wait = max(10, int(d.get("auto_fill_check_min", 60)))
+            nxt = f"next check {dt.datetime.now() + dt.timedelta(minutes=wait):%H:%M}"
+            if STATE["running"]:
+                STATE["auto"] = "working"
+            elif STATE["rc"] not in (None, 0) and time.time() - STATE.get("finished", 0) < 3 * 3600:
+                STATE["auto"] = "the last run was incomplete; trying again later"
+            elif _auto_reason(d):
+                STATE["auto"] = f"waiting: {_auto_reason(d)}; {nxt}"
+            elif not _needs_fill(d):
+                STATE["auto"] = f"the buffer is full; {nxt}"
+            else:
+                STATE["auto"] = "filling the buffer"
+                start(int(d.get("buffer_days", 4)), auto=True)
+        except Exception as e:  # noqa: BLE001 - never let the loop die
+            STATE["auto"] = f"error ({type(e).__name__}: {str(e)[:80]})"
+        time.sleep(wait * 60)
 
 
 def status() -> dict:
@@ -89,8 +181,13 @@ def status() -> dict:
         inv = inventory()
     except Exception:  # noqa: BLE001 - no checkout yet (first run) or a record being written
         inv = {}
+    try:
+        days = int(_cfg().get("buffer_days", 4))
+    except Exception:  # noqa: BLE001
+        days = 4
     return {"running": STATE["running"], "started": STATE["started"], "days": STATE["days"], "rc": STATE["rc"],
-            "uploads": ups[-40:], "tail": lines[-14:], "inventory": inv}
+            "uploads": ups[-40:], "tail": lines[-14:], "inventory": inv, "auto": STATE.get("auto"),
+            "by": STATE.get("by"), "buffer_days": days}
 
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -114,6 +211,7 @@ small{color:var(--mut)}
 </style></head><body><main>
 <h1>Shorts uploader</h1><p class="sub">Sourav Joshi gang + Sourav jyoshi hood + Facebook PM FF</p>
 <div class="card"><div class="row" style="justify-content:space-between"><b>Status</b><span id="st" class="pill">...</span></div>
+<p id="auto" style="margin:8px 0 0"><small>Automatic: starting...</small></p>
 <p id="info" style="margin:8px 0 0"><small>Keeps a buffer of Shorts scheduled ahead on both channels (6 a day each, 2 from
 the newest vlog + 4 from old vlogs, at 7:00, 7:30, 8:30, 9:00, 18:00, 19:00 IST, YouTube + Facebook). Shorts that already
 went public leave the buffer, so a click only makes the missing ones.</small></p></div>
@@ -140,6 +238,8 @@ async function tick(){try{const s=await (await fetch('/status?k='+K)).json();
  else if(s.rc===null){st.textContent='ready';st.className='pill'}
  else{st.textContent=s.rc===0?'done':'done with problems (see progress)';st.className='pill done'}
  document.querySelectorAll('button').forEach(b=>b.disabled=s.running);
+ document.getElementById('auto').innerHTML='<small>Automatic: '+esc(s.auto||'starting...')+(s.running&&s.by?' (started by '+s.by+')':'')+'</small>';
+ if(!window._d&&s.buffer_days){document.getElementById('days').value=s.buffer_days;window._d=1}
  const iv=Object.entries(s.inventory||{}).map(([c,n])=>(c=='channel_a'?'Sourav Joshi gang':'Sourav jyoshi hood')+': <b>'+n+'</b>');
  document.getElementById('inv').innerHTML=iv.length?iv.join(' &nbsp;·&nbsp; ')+' &nbsp;<small>(6 a day each)</small>':'...';
  document.getElementById('ups').innerHTML=s.uploads.length?s.uploads.map(l=>'<li>'+esc(l).replace(/(https:\\/\\/youtu\\.be\\/[\\w-]+)/,'<a href="$1" target="_blank">$1</a>')+'</li>').join(''):'<li><small>nothing yet</small></li>';
@@ -190,10 +290,12 @@ def main() -> None:
     url = f"http://localhost:{PORT}/"
     try:
         srv = ThreadingHTTPServer(("0.0.0.0", PORT), H)
-    except OSError:                       # already running (opened at login): just show it
-        webbrowser.open(url)
+    except OSError:                       # already running (started at login): just show it
+        if "--open" in sys.argv:
+            webbrowser.open(url)
         return
     key()
+    threading.Thread(target=auto_loop, daemon=True).start()
     if "--open" in sys.argv:
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     srv.serve_forever()
