@@ -2,70 +2,70 @@
  "channels": {
   "channel_b": [
    {
-    "cand": 35,
-    "end": 558.93,
-    "final": 1.17185,
+    "cand": 22,
+    "end": 663.94,
+    "final": 1.675317,
     "latest": true,
-    "start": 518.83,
-    "title": "Kya Chahie Kya Chahie? 😜😂",
-    "title_source": "question",
-    "vid": "h-SIxS8NiY0",
-    "viewer_score": 0.2463
+    "start": 624.75,
+    "title": "Hamla Achanak Hua 😂❤",
+    "title_source": "viewer_comment",
+    "vid": "7pJ0Rjh5V1o",
+    "viewer_score": 0.9207
    },
    {
-    "cand": 15,
-    "end": 341.774,
-    "final": 1.079054,
+    "cand": 29,
+    "end": 162.99,
+    "final": 1.590079,
     "latest": true,
-    "start": 299.5,
-    "title": "New Dog For Farm House 😄",
+    "start": 121.998,
+    "title": "Bro Watching The Mentalist 😄",
     "title_source": "viewer_comment",
-    "vid": "h-SIxS8NiY0",
-    "viewer_score": 0.0849
+    "vid": "7pJ0Rjh5V1o",
+    "viewer_score": 0.7331
+   },
+   {
+    "cand": 3,
+    "end": 172.872,
+    "final": 1.035475,
+    "latest": false,
+    "start": 135.04,
+    "title": "Bat Dekhenge Nana Pakka Bolenge 😲😥",
+    "title_source": "quote",
+    "vid": "PPWTwGU-cqQ",
+    "viewer_score": 0.2012
+   },
+   {
+    "cand": 37,
+    "end": 713.19,
+    "final": 1.006806,
+    "latest": false,
+    "start": 673.57,
+    "title": "Sahi Kaha Sorda 😄",
+    "title_source": "viewer_comment",
+    "vid": "PPWTwGU-cqQ",
+    "viewer_score": 0.2098
    },
    {
     "cand": 19,
     "end": 577.52,
-    "final": 2.155699,
+    "final": 2.134357,
     "latest": false,
-    "start": 539.57,
+    "start": 539.58,
     "title": "Chhota Bhai Padora Bhai 😅",
     "title_source": "viewer_comment",
     "vid": "6EX1SvZAuxI",
-    "viewer_score": 0.7236
+    "viewer_score": 0.6951
    },
    {
-    "cand": 2,
+    "cand": 1,
     "end": 121.32,
-    "final": 1.48222,
+    "final": 1.4602,
     "latest": false,
-    "start": 81.3,
+    "start": 81.32,
     "title": "Kisi Ne Yeh Nahi Pucha Tha 😅",
     "title_source": "viewer_comment",
     "vid": "6EX1SvZAuxI",
-    "viewer_score": 0.7956
-   },
-   {
-    "cand": 5,
-    "end": 569.7,
-    "final": 0.914285,
-    "latest": false,
-    "start": 535.42,
-    "title": "Acting Perfect Hai 😂",
-    "title_source": "viewer_comment",
-    "vid": "TeCrjPZ9fds",
-    "viewer_score": 0.2307
-   },
-   {
-    "cand": 15,
-    "end": 404.0,
-    "final": 2.325385,
-    "latest": false,
-    "start": 353.52,
-    "title": "Bechare Chacha Ji 😢",
-    "title_source": "viewer_comment",
-    "vid": "M8a-0T0uc9k",
-    "viewer_score": 0.9957
+    "viewer_score": 0.7643
    }
   ]
  },
@@ -74,6 +74,7 @@
  "used_titles": [
   "Amma Ki Smile 😄",
   "Apko Decoration Bhut Pasand Hai 😄",
+  "Arey Re Hansi 😜😂",
   "Avntika Kaa Reaction 😂",
   "Awantika How Beautiful 😍",
   "Bulldozer Yogi Baba 😄",
@@ -84,6 +85,7 @@
   "I Hate My Mind 🤯",
   "Jay Shree Ram 😄",
   "Jiddi Hai Bhai Bahut Jiddi 🥺😥",
+  "Kuch Bhi Ho Skta Hai Guys 😂",
   "Kunali Aura Minus 9999 😂",
   "Kunali Kya Kar Raha Hai? 😜😂",
   "Kya Acting Kar Raha Hai 😂",
@@ -92,22 +94,25 @@
   "New Vlog Old Recording Vlog 😄",
   "Nirmal Bhaiya Finllay Back 😄",
   "Og Line By Sourav Joshi 😄",
+  "Piyush Bhai Control 😅",
   "Piyush Ka Hair 😢",
   "Piyush Ko Mobile Gift Karo 😢",
   "Pyuish Phone Lene Aaiga Dubara 😂",
   "Sabse Achi Acting Bed Ne Ki 😅",
   "Sabse Budhi Generation 😂",
   "Samne Dekho Kitna Traiphik Ho Raha? 😜😂",
+  "Sindoor Sa Kuch Yad Aya 😄",
+  "Tenshan Mat Lo 😲😥",
   "Watch At 0 25x 😄",
   "Ye Kesi Aavaj He 😂",
   "Ye Mast Tha 😂",
   "Ye Tino 1v2 Na Karde 😅😂",
-  "Ye To Katarnak Awaj De Raha Hai 😮"
+  "Ye To Katarnak Awaj De Raha Hai 😮",
+  "Yrr Voice Nahi A Rhai Apki 😄"
  ],
  "vlog_titles": {
   "6EX1SvZAuxI": "DEFENDER Vs G-Wagon 😍 Tug Of War",
-  "M8a-0T0uc9k": "Circle Game With Family 😍",
-  "TeCrjPZ9fds": "Raatko Rone ki Awaz Aarhi h 😳",
-  "h-SIxS8NiY0": "Finally Farm House Ka Kaam Start Hogya 😍"
+  "7pJ0Rjh5V1o": "Raatko Chuhaa Pakad Liya 😳 Hath Se",
+  "PPWTwGU-cqQ": "Finally Playing GTA 6 😍 First Time"
  }
 }
