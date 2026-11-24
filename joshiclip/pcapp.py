@@ -22,7 +22,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-PORT = 8765
+PORT = 8790          # 8765 is used by another program on this PC (ClipPilot)
 LOGF = ROOT / "out" / "pcapp.log"
 STATE = {"running": False, "started": None, "days": 0, "rc": None, "lines": collections.deque(maxlen=400)}
 LOCK = threading.Lock()
