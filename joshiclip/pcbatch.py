@@ -100,13 +100,46 @@ def job(side: str, date: str) -> int:
     return daily.post(cfg, channel, plan, True, print, date=date)
 
 
-def run(days: int = 3) -> int:
+IST = dt.timezone(dt.timedelta(minutes=330))
+
+
+def inventory(side_dirs: dict | None = None, now: dt.datetime | None = None) -> dict[str, int]:
+    """Shorts per channel that are made but not published yet (scheduled on YouTube or waiting in the queue), from
+    each channel's own records. A Short stops counting the moment its publish time passes; a queued Short that
+    GitHub later uploaded is one Short, not two (same vlog + start)."""
+    import json
+    now = now or dt.datetime.now(dt.timezone.utc)
+    out: dict[str, int] = {}
+    for side, (channel, _, _) in SIDES.items():
+        base = (side_dirs or {}).get(side) or (CH / side)
+        f = Path(base) / "state" / f"posted_{channel}.jsonl"
+        seen: dict = {}
+        if f.exists():
+            for line in f.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                t = r.get("publish_at")
+                if t:
+                    seen[(r["vid"], round(r["start"], 3))] = dt.datetime.strptime(t, "%Y-%m-%dT%H:%M:%SZ").replace(
+                        tzinfo=dt.timezone.utc)
+        out[channel] = sum(1 for w in seen.values() if w > now)
+    return out
+
+
+def first_day(now_ist: dt.datetime, cutoff_hour: int = 17) -> dt.date:
+    """Today if its slots are still ahead, otherwise tomorrow (a late click must not squeeze 6 Shorts into the evening)."""
+    return now_ist.date() if now_ist.hour < cutoff_hour else now_ist.date() + dt.timedelta(days=1)
+
+
+def run(days: int = 4) -> int:
+    """Fill the buffer: keep `days` days of Shorts scheduled ahead on both channels. Days whose Shorts exist are
+    skipped in seconds; a half-finished day continues; only the missing days are analysed, rendered and uploaded."""
     keep_awake(True)
     try:
-        tz = dt.timezone(dt.timedelta(minutes=330))
-        today = dt.datetime.now(tz).date()
-        dates = [(today + dt.timedelta(days=k)).isoformat() for k in range(max(1, min(days, 7)))]
-        log(f"===== batch: {len(dates)} day(s) {dates[0]} .. {dates[-1]}, both channels")
+        start = first_day(dt.datetime.now(IST))
+        dates = [(start + dt.timedelta(days=k)).isoformat() for k in range(max(1, min(days, 10)))]
+        log(f"===== batch: buffer of {len(dates)} day(s) {dates[0]} .. {dates[-1]}, both channels")
         for s in SIDES:
             sync(s)
             log(f"{SIDES[s][2]}: up to date")
@@ -118,7 +151,8 @@ def run(days: int = 3) -> int:
                                    env=dict(os.environ, PYTHONPATH=str(CH / s), PYTHONUTF8="1", PYTHONUNBUFFERED="1"))
                 rc |= p.returncode
                 push(s)                            # after every day: the records are safe even if the PC goes off
-        log(f"===== batch done (rc={rc})")
+        inv = inventory()
+        log(f"===== batch done (rc={rc}); scheduled ahead: " + ", ".join(f"{c} {n}" for c, n in inv.items()))
         return rc
     finally:
         keep_awake(False)
@@ -127,7 +161,7 @@ def run(days: int = 3) -> int:
 if __name__ == "__main__":
     a = sys.argv[1:]
     if a[:1] == ["run"]:
-        n = int(a[a.index("--days") + 1]) if "--days" in a else 3
+        n = int(a[a.index("--days") + 1]) if "--days" in a else 4
         raise SystemExit(run(n))
     if a[:1] == ["job"] and len(a) == 3:
         raise SystemExit(job(a[1], a[2]))

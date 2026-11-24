@@ -84,8 +84,13 @@ def _work(days: int) -> None:
 def status() -> dict:
     lines = list(STATE["lines"])
     ups = [l for l in lines if "uploaded https://youtu.be/" in l or "queued for GitHub" in l]
+    try:
+        from .pcbatch import inventory
+        inv = inventory()
+    except Exception:  # noqa: BLE001 - no checkout yet (first run) or a record being written
+        inv = {}
     return {"running": STATE["running"], "started": STATE["started"], "days": STATE["days"], "rc": STATE["rc"],
-            "uploads": ups[-40:], "tail": lines[-14:]}
+            "uploads": ups[-40:], "tail": lines[-14:], "inventory": inv}
 
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -109,19 +114,24 @@ small{color:var(--mut)}
 </style></head><body><main>
 <h1>Shorts uploader</h1><p class="sub">Sourav Joshi gang + Sourav jyoshi hood + Facebook PM FF</p>
 <div class="card"><div class="row" style="justify-content:space-between"><b>Status</b><span id="st" class="pill">...</span></div>
-<p id="info" style="margin:8px 0 0"><small>One click makes 6 Shorts a day per channel (2 from the newest vlog, 4 from old
-vlogs), schedules them at 7:00, 7:30, 8:30, 9:00, 18:00, 19:00 IST on YouTube and Facebook. Keep the PC on until it says
-done (about 40 min per day).</small></p></div>
-<div class="card"><div class="row">
-<button onclick="go(1)" class="alt">Upload today</button>
-<button onclick="go(2)" class="alt">Today + tomorrow</button>
-<button onclick="go(3)">Upload 3 days</button></div></div>
+<p id="info" style="margin:8px 0 0"><small>Keeps a buffer of Shorts scheduled ahead on both channels (6 a day each, 2 from
+the newest vlog + 4 from old vlogs, at 7:00, 7:30, 8:30, 9:00, 18:00, 19:00 IST, YouTube + Facebook). Shorts that already
+went public leave the buffer, so a click only makes the missing ones.</small></p></div>
+<div class="card"><b>Scheduled ahead</b>
+<p id="inv" style="margin:6px 0 10px;font-size:18px">...</p>
+<div class="row"><label for="days"><small>Keep</small></label>
+<select id="days" style="font:16px system-ui;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)">
+<option>2</option><option>3</option><option selected>4</option><option>5</option><option>7</option></select>
+<label for="days"><small>days ahead</small></label>
+<button id="fill" onclick="go(+document.getElementById('days').value)">Fill the buffer</button></div>
+<p style="margin:10px 0 0"><small>First fill about 3-4 hours (analysing + making the Shorts + uploading), later ones only the
+missing days. Keep the PC on until it says done. Extra Shorts YouTube's daily limit holds back are uploaded by GitHub.</small></p></div>
 <div class="card"><b>Uploaded / scheduled</b><ul id="ups"><li><small>nothing yet</small></li></ul></div>
 <div class="card"><b>Progress</b><pre id="tail"></pre></div>
 <p><small>iPhone (same Wi-Fi, PC on): <span id="link">__LINK__</span></small></p>
 </main><script>
 const K=new URLSearchParams(location.search).get('k')||'';
-async function go(n){if(!confirm('Make and schedule Shorts for '+n+' day(s)?'))return;
+async function go(n){if(!confirm('Keep '+n+' days of Shorts scheduled ahead? Only the missing ones are made.'))return;
  const r=await fetch('/start?days='+n+'&k='+K,{method:'POST'});alert((await r.json()).msg);tick();}
 function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 async function tick(){try{const s=await (await fetch('/status?k='+K)).json();
@@ -130,6 +140,8 @@ async function tick(){try{const s=await (await fetch('/status?k='+K)).json();
  else if(s.rc===null){st.textContent='ready';st.className='pill'}
  else{st.textContent=s.rc===0?'done':'done with problems (see progress)';st.className='pill done'}
  document.querySelectorAll('button').forEach(b=>b.disabled=s.running);
+ const iv=Object.entries(s.inventory||{}).map(([c,n])=>(c=='channel_a'?'Sourav Joshi gang':'Sourav jyoshi hood')+': <b>'+n+'</b>');
+ document.getElementById('inv').innerHTML=iv.length?iv.join(' &nbsp;·&nbsp; ')+' &nbsp;<small>(6 a day each)</small>':'...';
  document.getElementById('ups').innerHTML=s.uploads.length?s.uploads.map(l=>'<li>'+esc(l).replace(/(https:\\/\\/youtu\\.be\\/[\\w-]+)/,'<a href="$1" target="_blank">$1</a>')+'</li>').join(''):'<li><small>nothing yet</small></li>';
  document.getElementById('tail').textContent=s.tail.join('\\n');}catch(e){}}
 tick();setInterval(tick,5000);
@@ -164,7 +176,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, json.dumps({"msg": "wrong link"}))
         u = urlparse(self.path)
         if u.path == "/start":
-            days = max(1, min(3, int(parse_qs(u.query).get("days", ["3"])[0])))
+            days = max(1, min(10, int(parse_qs(u.query).get("days", ["4"])[0])))
             ok = start(days)
             return self._send(200, json.dumps({"msg": f"Started: {days} day(s). Keep the PC on until it says done."
                                                if ok else "Already working - wait until it says done."}))
