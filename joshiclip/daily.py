@@ -210,9 +210,16 @@ def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False
     d = cfg["daily"]
     now = _today(d)
     date = date or now.date().isoformat()          # a later date: the PC plans several days ahead
-    if ledger.plan_path(date).exists() and not (replan or dry_run):     # a re-run continues today's plan
-        log(f"[daily plan {date}] reusing {ledger.plan_path(date)}")
-        return json.loads(ledger.plan_path(date).read_text(encoding="utf-8"))
+    existing = None
+    if ledger.plan_path(date).exists() and not (replan or dry_run):     # a re-run continues the day's plan
+        existing = json.loads(ledger.plan_path(date).read_text(encoding="utf-8"))
+        per_ = int(d.get("per_channel", 10))
+        short = {ch: per_ - len(existing["channels"].get(ch, [])) for ch in my_channels(d)}
+        if not any(n > 0 for n in short.values()):
+            log(f"[daily plan {date}] reusing {ledger.plan_path(date)}")
+            return existing
+        # the earlier run came out short (a download was blocked, a vlog failed): fill ONLY the missing Shorts
+        log(f"[daily plan {date}] plan has too few Shorts {short}; filling the missing ones")
     rng = random.Random(int(hashlib.sha256(date.encode()).hexdigest()[:12], 16))
     chans = my_channels(d)
     if not chans:
@@ -240,8 +247,10 @@ def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False
     if not vlogs:
         raise RuntimeError("could not list the channel's vlogs")
     log(f"[daily plan {date}] {len(vlogs)} vlogs in the pool; latest {vlogs[0]['vid']} {vlogs[0]['title']}")
-    plan = {"date": date, "channels": {ch: [] for ch in chans}, "used_titles": titles,
-            "max_moments_per_vlog": cfg["engine"]["max_shorts"], "vlog_titles": {}}
+    plan = existing or {"date": date, "channels": {ch: [] for ch in chans}, "used_titles": titles,
+                        "max_moments_per_vlog": cfg["engine"]["max_shorts"], "vlog_titles": {}}
+    for ch in chans:
+        plan["channels"].setdefault(ch, [])
     deadline = time.time() + 60 * float(d.get("plan_max_minutes", 150))
     touched = []
 
@@ -261,7 +270,14 @@ def plan_day(cfg: Config, dry_run: bool = False, log=print, replan: bool = False
         plan["vlog_titles"][v["vid"]] = v["title"]
         log(f"  {v['vid']} {label}: " + ", ".join(f"{ch} +{len(x)}" for ch, x in got.items()))
 
-    take(vlogs[0], want_latest, label="(latest)")
+    if existing:
+        miss = {ch: per - len(plan["channels"][ch]) for ch in chans if per - len(plan["channels"][ch]) > 0}
+        try:
+            take(vlogs[0], miss, label="(latest, filling)")
+        except Exception as e:  # noqa: BLE001
+            log(f"  {vlogs[0]['vid']}: skipped ({type(e).__name__}: {str(e)[:160]})")
+    else:
+        take(vlogs[0], want_latest, label="(latest)")
     # max_per_old_vlog counts all channels; a repo that plans only its own channel takes its share of it
     cap = max(1, round(int(d.get("max_per_old_vlog", 4)) * len(chans) / max(1, len(d["channels"]))))
     for v in ([v for v in vlogs[1:] if v["vid"] not in exh] if man else old_vlog_order(cfg, vlogs[1:], exh, rng)):

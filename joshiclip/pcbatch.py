@@ -95,9 +95,17 @@ def job(side: str, date: str) -> int:
             return ["prajmulik49-stack/s-clips"]
         daily.sync_partners = from_local_a
     plan = daily.plan_day(cfg, False, print, date=date)
-    n = len(plan["channels"].get(channel, []))
-    print(f"[{channel}] {date}: {n} Shorts planned", flush=True)
-    return daily.post(cfg, channel, plan, True, print, date=date)
+    items = plan["channels"].get(channel, [])
+    print(f"[{channel}] {date}: {len(items)} Shorts planned", flush=True)
+    daily.post(cfg, channel, plan, True, print, date=date)
+    # complete = all of the day's Shorts are posted/queued; otherwise the batch tries again later
+    done = {(r["vid"], round(r["start"], 3)) for r in ledger.posted()}
+    left = [it for it in items if (it["vid"], round(it["start"], 3)) not in done]
+    per = int(cfg["daily"].get("per_channel", 6))
+    if left or len(items) < per:
+        print(f"[{channel}] {date}: INCOMPLETE ({len(left)} not posted, {len(items)} of {per} planned)", flush=True)
+        return 1
+    return 0
 
 
 IST = dt.timezone(dt.timedelta(minutes=330))
@@ -143,16 +151,30 @@ def run(days: int = 4) -> int:
         for s in SIDES:
             sync(s)
             log(f"{SIDES[s][2]}: up to date")
-        rc = 0
-        for date in dates:
-            for s in SIDES:
-                log(f"----- {SIDES[s][0]} {date}")
+        import yaml
+        d = yaml.safe_load((MAIN / "config.yaml").read_text(encoding="utf-8")).get("daily", {})
+        rounds, wait_min = int(d.get("buffer_retry_rounds", 6)), float(d.get("buffer_retry_wait_min", 20))
+        pending = [(date, s) for date in dates for s in SIDES]
+        for rnd in range(1, rounds + 1):
+            failed = []
+            for date, s in pending:
+                log(f"----- {SIDES[s][0]} {date}" + (f"  (try {rnd}/{rounds})" if rnd > 1 else ""))
                 p = subprocess.run([sys.executable, "-m", "joshiclip.pcbatch", "job", s, date], cwd=CH / s,
                                    env=dict(os.environ, PYTHONPATH=str(CH / s), PYTHONUTF8="1", PYTHONUNBUFFERED="1"))
-                rc |= p.returncode
                 push(s)                            # after every day: the records are safe even if the PC goes off
+                if p.returncode:
+                    failed.append((date, s))
+            pending = failed
+            if not pending:
+                break
+            if rnd < rounds:                       # a download was blocked / YouTube busy: wait, then only the rest
+                log(f"{len(pending)} day(s) incomplete; trying again in {wait_min:.0f} min (try {rnd + 1}/{rounds}). "
+                    "Keep the PC on.")
+                time.sleep(wait_min * 60)
+        rc = 1 if pending else 0
         inv = inventory()
-        log(f"===== batch done (rc={rc}); scheduled ahead: " + ", ".join(f"{c} {n}" for c, n in inv.items()))
+        log(f"===== batch done (rc={rc}" + (f", still incomplete: {len(pending)} day(s) - click again later" if pending else "")
+            + "); scheduled ahead: " + ", ".join(f"{c} {n}" for c, n in inv.items()))
         return rc
     finally:
         keep_awake(False)

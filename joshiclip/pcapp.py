@@ -121,7 +121,7 @@ went public leave the buffer, so a click only makes the missing ones.</small></p
 <p id="inv" style="margin:6px 0 10px;font-size:18px">...</p>
 <div class="row"><label for="days"><small>Keep</small></label>
 <select id="days" style="font:16px system-ui;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg)">
-<option>2</option><option>3</option><option selected>4</option><option>5</option><option>7</option></select>
+<option>2</option><option>3</option><option selected>4</option><option>5</option><option>7</option><option>10</option></select>
 <label for="days"><small>days ahead</small></label>
 <button id="fill" onclick="go(+document.getElementById('days').value)">Fill the buffer</button></div>
 <p style="margin:10px 0 0"><small>First fill about 3-4 hours (analysing + making the Shorts + uploading), later ones only the

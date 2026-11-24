@@ -79,3 +79,33 @@ def test_queue_uploads_earliest_first_stops_at_the_daily_limit_and_retimes_late_
     assert uploads[1][1] == metas["q_channel_a_d2_01_vB"]["publish_at"]
     assert [r["vid"] for r in saved] == ["vA", "vB"] and all(r["from_queue"] for r in saved)
     assert len(deleted) == 4                                       # mp4 + json of each uploaded Short; vC stays queued
+
+
+def test_a_short_plan_is_filled_not_reused(tmp_path, monkeypatch):
+    monkeypatch.setattr(ledger, "STATE", tmp_path / "state")
+    monkeypatch.setattr(ledger, "PARTNERS", tmp_path / "state" / "_partners")
+    ledger.save_plan({"date": "2026-11-25", "used_titles": [], "max_moments_per_vlog": 20, "vlog_titles": {"v0": "T0"},
+                      "channels": {"channel_a": [{"vid": "v0", "cand": 1, "start": 10.0, "end": 50.0, "final": 2.0,
+                                                  "title": "kept", "latest": True}]}})
+    asked = []
+
+    def fake_moments(cfg, vid, used, log=print):
+        asked.append(vid)
+        return [{"vid": vid, "cand": i, "start": 100.0 * i, "end": 100.0 * i + 40, "final": 1.5 - i / 10,
+                 "title": f"{vid}-{i}"} for i in range(1, 5)]
+    monkeypatch.setattr(daily, "moments", fake_moments)
+    monkeypatch.setattr(daily, "list_vlogs", lambda cfg, n: [{"vid": "v1", "title": "T1"}, {"vid": "v2", "title": "T2"}])
+    monkeypatch.setattr(daily, "prune_cache", lambda *a, **k: [])
+    monkeypatch.setattr(ledger, "git_commit", lambda *a, **k: None)
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
+    cfg = Config({"paths": {"work": str(tmp_path / "w")}, "engine": {"max_shorts": 20, "min_shorts": 1}, "download": {},
+                  "daily": {"channels": [{"name": "channel_a", "env": "YT_A"}], "per_channel": 3,
+                            "latest_per_channel": [1, 1], "vlog_pool": 5, "utc_offset_min": 330}})
+    plan = daily.plan_day(cfg, False, lambda *a: None, date="2026-11-25")
+    titles = [x["title"] for x in plan["channels"]["channel_a"]]
+    assert len(titles) == 3 and titles[0] == "kept"                  # the Short already planned stays, 2 are added
+    saved = json.loads(ledger.plan_path("2026-11-25").read_text(encoding="utf-8"))
+    assert len(saved["channels"]["channel_a"]) == 3
+    asked.clear()
+    daily.plan_day(cfg, False, lambda *a: None, date="2026-11-25")   # full now: reused, nothing analysed
+    assert asked == []
