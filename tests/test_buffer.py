@@ -144,3 +144,15 @@ def test_auto_fill_starts_only_when_it_is_safe_and_needed(tmp_path, monkeypatch)
     assert not pcapp._needs_fill(cfg)                                      # 24 and 22 of 24: within half a day
     inv["channel_b"] = 20
     assert pcapp._needs_fill(cfg)                                          # 4 missing: top up
+
+
+def test_a_stale_sslkeylogfile_from_the_antivirus_is_dropped():
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    env = dict(os.environ, SSLKEYLOGFILE=r"\.\aswMonFltProxy\stale", PYTHONPATH=str(root))
+    r = subprocess.run([sys.executable, "-c", "import os, joshiclip; print(os.environ.get('SSLKEYLOGFILE'))"],
+                       capture_output=True, text=True, env=env, cwd=str(root))
+    assert r.stdout.strip() == "None"
